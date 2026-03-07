@@ -1,115 +1,172 @@
 const LeaveRequest = require('../models/LeaveRequest');
 const Attendance = require('../models/Attendance');
-const User = require('../models/User'); // EKLENDİ: Adminleri bulmak için
-const sendEmail = require('../utils/sendEmail'); // EKLENDİ: Postacımız
+const User = require('../models/User');
+const sendEmail = require('../utils/sendEmail');
 
-// --- 1. ÜYENİN İZİN TALEBİ OLUŞTURMASI ---
+// --- 1. ÜYENİN İZİN TALEBİ OLUŞTURMASI (AYNI GÜN KORUMALI) ---
 exports.createLeaveRequest = async (req, res) => {
   try {
     const { requestedDate, reason } = req.body;
     
-    // KONTROL 1: Kullanıcı gerçekten giriş yapmış mı?
     if (!req.user) {
       return res.status(401).json({ message: 'Kullanıcı bilgisi bulunamadı, lütfen tekrar giriş yapın.' });
     }
 
     const userId = req.user._id;
 
-    // KONTROL 2: Tarih ve mazeret boş mu?
     if (!requestedDate || !reason) {
       return res.status(400).json({ message: 'Lütfen tarih ve mazeret alanlarını doldurun.' });
     }
 
-    // ... (Geri kalan kodlar aynı)
+    // AYNI GÜN KONTROLÜ
+    const startOfDay = new Date(requestedDate);
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(requestedDate);
+    endOfDay.setHours(23, 59, 59, 999);
 
-    // 2. Yeni talebi oluştur
-    const leaveRequest = new LeaveRequest({
+    const existingLeave = await LeaveRequest.findOne({
       userId,
+      requestedDate: { $gte: startOfDay, $lte: endOfDay }
+    });
+
+    if (existingLeave) {
+      return res.status(400).json({ message: 'Bu tarih için zaten bir izin talebiniz var! 🚫' });
+    }
+
+    const leaveRequest = new LeaveRequest({
+      userId, 
       requestedDate: new Date(requestedDate),
       reason
     });
 
     await leaveRequest.save();
 
-    // --- YENİ EKLENEN KISIM: ADMİNLERE E-POSTA GÖNDERME (RESEND İLE) ---
+    // Adminlere Mail Atma
     try {
-      // 1. Sistemdeki tüm Adminleri (veya Süperadminleri) bul
       const admins = await User.find({ role: { $in: ['admin', 'superadmin'] } });
-      
-      // 2. Adminlerin e-postalarını bir dizi (array) haline getir
       const adminEmails = admins.map(admin => admin.email);
 
-      // 3. Eğer sistemde en az bir admin varsa e-posta gönder
       if (adminEmails.length > 0) {
-        // İzni isteyen üyenin adını bulalım
         const requestingUser = await User.findById(userId);
-
-        // Postacıyı çağır ve mesajı gönder
         await sendEmail({
-          email: adminEmails, // Tüm admin e-postaları
+          email: adminEmails,
           subject: '⚠️ Yeni İzin Talebi - İTÜ Racing',
-          message: `${requestingUser.name} adlı üye, ${new Date(requestedDate).toLocaleDateString('tr-TR')} tarihi için izin talebinde bulundu.\n\nMazeret: ${reason}\n\nLütfen sisteme girerek talebi onaylayın veya reddedin.`
+          message: `${requestingUser.name} adlı üye, ${new Date(requestedDate).toLocaleDateString('tr-TR')} tarihi için izin talebinde bulundu.\n\nMazeret: ${reason}`
         });
       }
     } catch (emailError) {
       console.error("E-posta gönderilemedi:", emailError.message);
-      // E-posta gitmese bile izin veri tabanına kaydedildiği için sistemi çökertmiyoruz, sadece hatayı logluyoruz.
     }
-    // --- YENİ EKLENEN KISIM SONU ---
     
-    res.status(201).json({ message: 'İzin talebiniz başarıyla oluşturuldu ve Admin onayına sunuldu. 📩' });
+    res.status(201).json({ message: 'İzin talebiniz başarıyla oluşturuldu! 📩' });
   } catch (error) {
     console.error("İzin Talebi Hatası:", error.message);
     res.status(500).json({ message: 'Sunucu hatası oluştu.' });
   }
 };
 
-// --- 2. ADMİNİN İZİN TALEBİNİ ONAYLAMASI VEYA REDDETMESİ ---
-exports.reviewLeaveRequest = async (req, res) => {
+// --- 2. ÜYENİN KENDİ İZİNLERİNİ GETİRMESİ ---
+exports.getMyLeaves = async (req, res) => {
   try {
-    const { requestId } = req.params; // URL'den gelecek ID
-    const { status } = req.body; // 'Onaylandı' veya 'Reddedildi'
+    const leaves = await LeaveRequest.find({ userId: req.user._id }).sort({ requestedDate: -1 });
+    res.status(200).json(leaves);
+  } catch (error) {
+    res.status(500).json({ message: 'İzinleriniz getirilirken hata oluştu.' });
+  }
+};
+
+// --- 3. ÜYENİN KENDİ İZNİNİ DÜZENLEMESİ ---
+exports.updateMyLeave = async (req, res) => {
+  try {
+    const { reason } = req.body;
+    const leave = await LeaveRequest.findOne({ _id: req.params.id, userId: req.user._id });
+
+    if (!leave) return res.status(404).json({ message: 'İzin bulunamadı!' });
+    
+    leave.reason = reason;
+    await leave.save();
+    res.status(200).json({ message: 'Mazeretiniz güncellendi! ✏️' });
+  } catch (error) {
+    res.status(500).json({ message: 'Güncelleme hatası oluştu.' });
+  }
+};
+
+// --- 4. ÜYENİN İZİN TALEBİNİ GERİ ÇEKMESİ (SİLMESİ) ---
+exports.deleteMyLeave = async (req, res) => {
+  try {
+    const leave = await LeaveRequest.findOne({ _id: req.params.id, userId: req.user._id });
+    if (!leave) return res.status(404).json({ message: 'İzin bulunamadı!' });
+
+    // Eğer onaylanmış bir izin siliniyorsa, yoklamadaki kaydı da temizleyelim
+    await Attendance.findOneAndDelete({ 
+      userId: req.user._id, 
+      date: leave.requestedDate,
+      status: 'İzinli Yok' 
+    });
+
+    await LeaveRequest.findByIdAndDelete(req.params.id);
+    res.status(200).json({ message: 'İzin talebiniz başarıyla silindi. 🗑️' });
+  } catch (error) {
+    res.status(500).json({ message: 'Silme işlemi başarısız.' });
+  }
+};
+
+// --- 5. TÜM İZİNLERİ GETİRME (ADMİNLER İÇİN) ---
+exports.getAllLeaveRequests = async (req, res) => {
+  try {
+    const leaves = await LeaveRequest.find()
+      .populate('userId', 'name email studentId')
+      .sort({ createdAt: -1 });
+      
+    const formattedLeaves = leaves.map(leave => ({
+      ...leave._doc,
+      user: leave.userId 
+    }));
+
+    res.status(200).json(formattedLeaves);
+  } catch (error) {
+    res.status(500).json({ message: 'İzinler getirilirken hata oluştu.' });
+  }
+};
+
+// --- 6. İZİN DURUMUNU GÜNCELLEME (ADMİNLER İÇİN) ---
+exports.updateLeaveStatus = async (req, res) => {
+  try {
+    const { status } = req.body; 
     const adminId = req.user._id;
 
-    if (!['Onaylandı', 'Reddedildi'].includes(status)) {
-      return res.status(400).json({ message: 'Geçersiz statü. Sadece Onaylandı veya Reddedildi olabilir.' });
+    if (!['Onaylandı', 'Reddedildi', 'Bekliyor'].includes(status)) {
+      return res.status(400).json({ message: 'Geçersiz statü.' });
     }
 
-    // 1. Talebi bul ve güncelle
-    const request = await LeaveRequest.findById(requestId);
-    if (!request) {
-      return res.status(404).json({ message: 'İzin talebi bulunamadı!' });
-    }
+    const request = await LeaveRequest.findById(req.params.id);
+    if (!request) return res.status(404).json({ message: 'İzin bulunamadı!' });
 
     request.status = status;
-    request.reviewedBy = adminId;
+    request.reviewedBy = status === 'Bekliyor' ? null : adminId; 
     await request.save();
 
-    // 2. Eğer onaylandıysa, Yoklama tablosuna 'İzinli Yok' olarak işle
     if (status === 'Onaylandı') {
-      // Önce o gün için bir yoklama kaydı var mı diye bakıyoruz
       let attendance = await Attendance.findOne({ userId: request.userId, date: request.requestedDate });
-      
       if (!attendance) {
-        // Yoksa yeni bir kayıt oluşturuyoruz
         attendance = new Attendance({
           userId: request.userId,
           date: request.requestedDate,
           status: 'İzinli Yok',
-          colorCode: 'gray' // İzinli olduğu için gri
+          colorCode: 'gray' 
         });
         await attendance.save();
-      } else {
-         // Varsa güncelliyoruz (Nadiren olur ama garantiye alalım)
-         attendance.status = 'İzinli Yok';
-         attendance.colorCode = 'gray';
-         await attendance.save();
       }
+    } else if (status === 'Bekliyor' || status === 'Reddedildi') {
+      await Attendance.findOneAndDelete({ 
+        userId: request.userId, 
+        date: request.requestedDate,
+        status: 'İzinli Yok' 
+      });
     }
 
-    res.status(200).json({ message: `İzin talebi başarıyla ${status}! ✅` });
+    res.status(200).json({ message: `İşlem başarılı: ${status}`, leave: request });
   } catch (error) {
-    console.error("İzin Onay Hatası:", error.message);
-    res.status(500).json({ message: 'Sunucu hatası oluştu.' });
+    res.status(500).json({ message: 'İşlem sırasında hata oluştu.' });
   }
 };

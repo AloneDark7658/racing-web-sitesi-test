@@ -16,16 +16,22 @@ const userSchema = new mongoose.Schema({
   },
   role: { 
     type: String, 
-    enum: ['superadmin', 'admin', 'member'], // Sadece bu üç rolden biri olabilir
-    default: 'member' // Varsayılan olarak herkes üye kaydedilir
+    enum: ['superadmin', 'admin', 'member'], 
+    default: 'member' 
   },
   studentId: { 
-    type: String 
-  }, // İTÜ Öğrenci Numarası
+    type: String,
+    unique: true // Aynı öğrenci numarasıyla iki kişi kayıt olamaz (Bunu da ekledik)
+  }, 
   createdAt: { 
     type: Date, 
     default: Date.now 
-  }
+  },
+  
+  // --- ŞİFRE SIFIRLAMA İÇİN EKLENEN YENİ ALANLAR ---
+  resetPasswordToken: String,
+  resetPasswordExpire: Date
+  // ------------------------------------------------
 });
 
 module.exports = mongoose.model('User', userSchema);
