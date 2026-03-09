@@ -4,11 +4,11 @@ const AttendanceSession = require('../models/AttendanceSession');
 const User = require('../models/User');
 const Leave = require('../models/LeaveRequest'); // Senin model adın ✅
 
-// --- YARDIMCI SENSÖR: Tarihleri UTC sapması olmadan YYYY-MM-DD olarak eşleştirir ---
+// --- YARDIMCI SENSÖR: Tarihleri UTC ile YYYY-MM-DD olarak eşleştirir (timezone tutarlılığı için) ---
 const formatDate = (date) => {
   if (!date) return null;
   const d = new Date(date);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;
 };
 
 // 1. MEVCUT OTURUMU GETİR (Admin için)
@@ -141,7 +141,8 @@ exports.getAttendanceSummary = async (req, res) => {
         const att = userAtts.find(a => formatDate(a.date) === sDate);
         
         if (att) {
-          if (att.colorCode === 'green') green++;
+          if (att.status === 'İzinli Yok') leave++;
+          else if (att.colorCode === 'green') green++;
           else if (att.colorCode === 'yellow' || att.colorCode === 'orange') yellow++;
           else if (att.colorCode === 'red') red++;
         } else {
@@ -183,7 +184,8 @@ const generateGraphData = async (userId) => {
 
     if (record) {
       delay = record.delayMinutes;
-      if (record.colorCode === 'green') { score = 3; status = 'Zamanında'; }
+      if (record.status === 'İzinli Yok') { score = 0; status = 'İzinli'; }
+      else if (record.colorCode === 'green') { score = 3; status = 'Zamanında'; }
       else if (record.colorCode === 'yellow' || record.colorCode === 'orange') { score = 2; status = 'Gecikmeli'; }
       else if (record.colorCode === 'red') { score = 1; status = 'Çok Geç'; }
     } else if (isOnLeave) {
@@ -225,7 +227,8 @@ exports.getMySummary = async (req, res) => {
       const isOnLeave = userLeaves.find(l => formatDate(l.requestedDate) === sDate);
 
       if (att) {
-        if (att.colorCode === 'green') green++;
+        if (att.status === 'İzinli Yok') leave++;
+        else if (att.colorCode === 'green') green++;
         else if (att.colorCode === 'yellow' || att.colorCode === 'orange') yellow++;
         else if (att.colorCode === 'red') red++;
       } else if (isOnLeave) {

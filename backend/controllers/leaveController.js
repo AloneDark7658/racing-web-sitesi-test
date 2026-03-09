@@ -3,6 +3,14 @@ const Attendance = require('../models/Attendance');
 const User = require('../models/User');
 const sendEmail = require('../utils/sendEmail');
 
+// --- Tarihi YYYY-MM-DD UTC olarak normalize et (timezone tutarlılığı) ---
+const toDateOnly = (date) => {
+  if (!date) return null;
+  const d = new Date(date);
+  const str = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;
+  return new Date(str + 'T00:00:00.000Z');
+};
+
 // --- 1. ÜYENİN İZİN TALEBİ OLUŞTURMASI (AYNI GÜN KORUMALI) ---
 exports.createLeaveRequest = async (req, res) => {
   try {
@@ -35,7 +43,7 @@ exports.createLeaveRequest = async (req, res) => {
 
     const leaveRequest = new LeaveRequest({
       userId, 
-      requestedDate: new Date(requestedDate),
+      requestedDate: toDateOnly(new Date(requestedDate)),
       reason
     });
 
@@ -98,9 +106,11 @@ exports.deleteMyLeave = async (req, res) => {
     if (!leave) return res.status(404).json({ message: 'İzin bulunamadı!' });
 
     // Eğer onaylanmış bir izin siliniyorsa, yoklamadaki kaydı da temizleyelim
-    await Attendance.findOneAndDelete({ 
+    const dateOnly = toDateOnly(leave.requestedDate);
+    const nextDay = new Date(dateOnly.getTime() + 24 * 60 * 60 * 1000);
+    await Attendance.deleteMany({ 
       userId: req.user._id, 
-      date: leave.requestedDate,
+      date: { $gte: dateOnly, $lt: nextDay },
       status: 'İzinli Yok' 
     });
 
@@ -147,20 +157,27 @@ exports.updateLeaveStatus = async (req, res) => {
     await request.save();
 
     if (status === 'Onaylandı') {
-      let attendance = await Attendance.findOne({ userId: request.userId, date: request.requestedDate });
+      const dateOnly = toDateOnly(request.requestedDate);
+      const nextDay = new Date(dateOnly.getTime() + 24 * 60 * 60 * 1000);
+      let attendance = await Attendance.findOne({ 
+        userId: request.userId, 
+        date: { $gte: dateOnly, $lt: nextDay }
+      });
       if (!attendance) {
         attendance = new Attendance({
           userId: request.userId,
-          date: request.requestedDate,
+          date: dateOnly,
           status: 'İzinli Yok',
           colorCode: 'gray' 
         });
         await attendance.save();
       }
     } else if (status === 'Bekliyor' || status === 'Reddedildi') {
-      await Attendance.findOneAndDelete({ 
+      const dateOnly = toDateOnly(request.requestedDate);
+      const nextDay = new Date(dateOnly.getTime() + 24 * 60 * 60 * 1000);
+      await Attendance.deleteMany({ 
         userId: request.userId, 
-        date: request.requestedDate,
+        date: { $gte: dateOnly, $lt: nextDay },
         status: 'İzinli Yok' 
       });
     }

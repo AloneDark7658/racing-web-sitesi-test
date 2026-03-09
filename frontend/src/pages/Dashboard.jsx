@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 // YENİ: QrCode ikonunu da ekledik
-import { LogOut, User, ShieldAlert, Car, CalendarPlus, ClipboardList, QrCode, TrendingUp, Activity } from 'lucide-react'; 
+import { LogOut, User, ShieldAlert, Car, CalendarPlus, ClipboardList, QrCode, TrendingUp, Activity, Settings, Building2 } from 'lucide-react'; 
 
 const Dashboard = () => {
   const [user, setUser] = useState(null);
@@ -51,6 +51,13 @@ const Dashboard = () => {
                   )}
                 </span>
               </div>
+              <Link
+                to="/profile"
+                className="p-2 bg-white/5 hover:bg-red-600/20 hover:text-red-500 rounded-lg transition-all border border-white/10"
+                title="Profil Ayarları"
+              >
+                <Settings size={20} />
+              </Link>
               <button
                 onClick={handleLogout}
                 className="bg-red-600/20 hover:bg-red-600 text-red-500 hover:text-white p-2 rounded-lg transition-all"
@@ -74,6 +81,18 @@ const Dashboard = () => {
           </p>
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+            
+            {/* Profil Ayarları - Herkes görebilir */}
+            <Link 
+              to="/profile" 
+              className="bg-white/5 border border-white/10 hover:border-red-500/50 hover:bg-red-500/10 transition-all p-6 rounded-xl flex flex-col items-center justify-center gap-3 group cursor-pointer"
+            >
+              <div className="bg-red-600/20 p-4 rounded-full text-red-500 group-hover:scale-110 transition-transform">
+                <Settings size={32} />
+              </div>
+              <h3 className="text-lg font-bold text-white">Profil Ayarları</h3>
+              <p className="text-sm text-gray-400 text-center">E-posta ve şifrenizi güncelleyin.</p>
+            </Link>
             
             {/* HERKESİN GÖRDÜĞÜ İZİN İSTEME BUTONU */}
             <Link 
@@ -134,6 +153,18 @@ const Dashboard = () => {
                   </div>
                   <h3 className="text-lg font-bold text-white">Raporlar & Analiz</h3>
                   <p className="text-sm text-gray-400 text-center">Takımın devamlılık grafiğini ve özetini incele.</p>
+                </Link>
+
+                {/* DEPARTMAN & MESAİ AYARLARI (Sadece Admin) */}
+                <Link 
+                  to="/admin/departments" 
+                  className="bg-white/5 border border-purple-500/30 hover:border-purple-500 hover:bg-purple-500/10 transition-all p-6 rounded-xl flex flex-col items-center justify-center gap-3 group cursor-pointer"
+                >
+                  <div className="bg-purple-500/20 p-4 rounded-full text-purple-500 group-hover:scale-110 transition-transform">
+                    <Building2 size={32} />
+                  </div>
+                  <h3 className="text-lg font-bold text-white">Departman & Mesai</h3>
+                  <p className="text-sm text-gray-400 text-center">Alt birimleri ve mesai gün/saatlerini yönet.</p>
                 </Link>
               </>
 

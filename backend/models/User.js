@@ -22,6 +22,11 @@ const userSchema = new mongoose.Schema({
   studentId: { 
     type: String,
     unique: true // Aynı öğrenci numarasıyla iki kişi kayıt olamaz (Bunu da ekledik)
+  },
+  departmentId: { 
+    type: mongoose.Schema.Types.ObjectId, 
+    ref: 'Department',
+    default: null 
   }, 
   createdAt: { 
     type: Date, 

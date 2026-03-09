@@ -23,7 +23,9 @@ app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/attendance', require('./routes/attendanceRoutes'));
 app.use('/api/leave', require('./routes/leaveRoutes'));
-app.use('/api/analytics', require('./routes/analyticsRoutes')); // YENİ EKLENEN SATIR
+app.use('/api/analytics', require('./routes/analyticsRoutes'));
+app.use('/api/users', require('./routes/userRoutes'));
+app.use('/api/departments', require('./routes/departmentRoutes'));
 
 // --- Test Rotası ---
 app.get('/', (req, res) => {

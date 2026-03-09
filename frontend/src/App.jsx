@@ -6,10 +6,12 @@ import ResetPassword from './pages/ResetPassword';
 import Dashboard from './pages/Dashboard';
 import LeaveRequest from './pages/LeaveRequest';
 import AdminLeaves from './pages/AdminLeaves';
+import AdminDepartments from './pages/AdminDepartments';
 import AdminAttendanceLog from './pages/AdminAttendanceLog'; // Yukarıya ekle
 import AdminQR from './pages/AdminQR';
 import DirectScan from './pages/DirectScan';
 import MyPerformance from './pages/MyPerformance';
+import Profile from './pages/Profile';
 
 function App() {
   return (
@@ -23,6 +25,7 @@ function App() {
         <Route path="/leave-request" element={<LeaveRequest />} />
         <Route path="/admin/attendance-log" element={<AdminAttendanceLog />} />
         <Route path="/my-performance" element={<MyPerformance />} />
+        <Route path="/profile" element={<Profile />} />
         
         {/* BU İKİSİNİ KULLANDIN AMA YUKARIDA ÇAĞIRMAMIŞTIN */}
         <Route path="/admin/qr-generate" element={<AdminQR />} />
@@ -30,6 +33,7 @@ function App() {
 
         {/* ADMİN İZİN PANELİ ROTASI */}
         <Route path="/admin/leaves" element={<AdminLeaves />} />
+        <Route path="/admin/departments" element={<AdminDepartments />} />
         
         <Route path="*" element={<Navigate to="/login" />} />
       </Routes>
