@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import axios from 'axios';
+import api from '../lib/api';
 import { Link, useNavigate } from 'react-router-dom';
 import { 
   ArrowLeft, Building2, Plus, Pencil, Trash2, Clock, Users, 
@@ -7,9 +7,6 @@ import {
 } from 'lucide-react';
 
 const DAY_NAMES = ['Pazar', 'Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi'];
-const API = 'http://localhost:5000/api';
-const DEPT_API = `${API}/departments`;
-const USER_API = `${API}/users`;
 
 const AdminDepartments = () => {
   const [departments, setDepartments] = useState([]);
@@ -41,7 +38,7 @@ const AdminDepartments = () => {
 
   const fetchDepartments = async () => {
     try {
-      const { data } = await axios.get(DEPT_API, { headers: { Authorization: `Bearer ${token}` } });
+      const { data } = await api.get('/departments');
       setDepartments(data);
     } catch (err) {
       setError(err.response?.data?.message || 'Departmanlar yüklenemedi.');
@@ -52,7 +49,7 @@ const AdminDepartments = () => {
 
   const fetchUsers = async () => {
     try {
-      const { data } = await axios.get(`${USER_API}/list`, { headers: { Authorization: `Bearer ${token}` } });
+      const { data } = await api.get('/users/list');
       setUsers(data);
     } catch (err) {
       setError(err.response?.data?.message || 'Kullanıcılar yüklenemedi.');
@@ -106,7 +103,7 @@ const AdminDepartments = () => {
     setError('');
     setSuccess('');
     try {
-      const url = editingId ? `${DEPT_API}/${editingId}` : DEPT_API;
+      const url = editingId ? `/departments/${editingId}` : '/departments';
       const payload = {
         name: form.name.trim(),
         parentId: form.parentId || null,
@@ -117,10 +114,10 @@ const AdminDepartments = () => {
         }
       };
       if (editingId) {
-        await axios.put(url, payload, { headers: { Authorization: `Bearer ${token}` } });
+        await api.put(url, payload);
         setSuccess('Departman güncellendi.');
       } else {
-        await axios.post(url, payload, { headers: { Authorization: `Bearer ${token}` } });
+        await api.post(url, payload);
         setSuccess('Departman oluşturuldu.');
       }
       fetchDepartments();
@@ -138,7 +135,7 @@ const AdminDepartments = () => {
   const handleDelete = async (id, name) => {
     if (!window.confirm(`"${name}" departmanını silmek istediğinize emin misiniz? Alt birimleri olan departman silinemez.`)) return;
     try {
-      await axios.delete(`${DEPT_API}/${id}`, { headers: { Authorization: `Bearer ${token}` } });
+      await api.delete(`/departments/${id}`);
       setSuccess('Departman silindi.');
       fetchDepartments();
     } catch (err) {
@@ -148,10 +145,9 @@ const AdminDepartments = () => {
 
   const handleAssignMember = async (userId, departmentId) => {
     try {
-      await axios.put(
-        `${USER_API}/${userId}/department`,
-        { departmentId: departmentId || null },
-        { headers: { Authorization: `Bearer ${token}` } }
+      await api.put(
+        `/users/${userId}/department`,
+        { departmentId: departmentId || null }
       );
       fetchUsers();
       fetchDepartments();

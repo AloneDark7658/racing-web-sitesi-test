@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import axios from 'axios';
+import api from '../lib/api';
 import { Link } from 'react-router-dom';
 import { Mail, Loader2, ArrowLeft } from 'lucide-react';
 
@@ -16,7 +16,7 @@ const ForgotPassword = () => {
     setMessage('');
 
     try {
-      const { data } = await axios.post('http://localhost:5000/api/auth/forgotpassword', { email });
+      const { data } = await api.post('/auth/forgotpassword', { email });
       setMessage(data.message); // Backend'den gelen "Mail gönderildi" mesajı
       setEmail(''); // Kutuyu temizle
     } catch (err) {

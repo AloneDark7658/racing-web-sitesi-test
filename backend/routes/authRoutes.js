@@ -1,15 +1,18 @@
 const express = require('express');
 const router = express.Router();
-
-// 1. Controller dosyasındaki tüm fonksiyonları içeri alıyoruz
 const { register, login, forgotPassword, resetPassword } = require('../controllers/authController');
+const { authLimiter, passwordResetLimiter } = require('../middleware/rateLimiter');
+const { 
+  registerValidation, 
+  loginValidation, 
+  forgotPasswordValidation, 
+  resetPasswordValidation 
+} = require('../middleware/validators');
 
-// --- MEVCUT ROTALAR ---
-router.post('/register', register);
-router.post('/login', login);
-
-// --- YENİ EKLENEN ŞİFRE SIFIRLAMA ROTALARI ---
-router.post('/forgotpassword', forgotPassword);
-router.put('/resetpassword/:token', resetPassword);
+// --- AUTH ROTALARI (Rate Limited + Validated) ---
+router.post('/register', authLimiter, registerValidation, register);
+router.post('/login', authLimiter, loginValidation, login);
+router.post('/forgotpassword', passwordResetLimiter, forgotPasswordValidation, forgotPassword);
+router.put('/resetpassword/:token', passwordResetLimiter, resetPasswordValidation, resetPassword);
 
 module.exports = router;

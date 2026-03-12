@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import api from '../lib/api';
 import { useNavigate, Link } from 'react-router-dom';
 import { 
   Calendar, FileText, Send, Loader2, ArrowLeft, 
@@ -30,9 +30,7 @@ const LeaveRequest = () => {
 
   const fetchMyLeaves = async () => {
     try {
-      const { data } = await axios.get('http://localhost:5000/api/leave/my-leaves', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const { data } = await api.get('/leave/my-leaves');
       setMyLeaves(data);
     } catch (err) {
       console.error("İzinler yüklenemedi", err);
@@ -48,10 +46,9 @@ const LeaveRequest = () => {
     setMessage('');
 
     try {
-      const { data } = await axios.post(
-        'http://localhost:5000/api/leave',
-        { requestedDate, reason },
-        { headers: { Authorization: `Bearer ${token}` } }
+      const { data } = await api.post(
+        '/leave',
+        { requestedDate, reason }
       );
       setMessage(data.message);
       setRequestedDate('');
@@ -67,9 +64,7 @@ const LeaveRequest = () => {
   const handleDelete = async (id) => {
     if (!window.confirm('Bu izin talebini geri çekmek istediğinize emin misiniz?')) return;
     try {
-      await axios.delete(`http://localhost:5000/api/leave/${id}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      await api.delete(`/leave/${id}`);
       setMyLeaves(myLeaves.filter(leave => leave._id !== id));
     } catch (err) {
       alert(err.response?.data?.message || 'Hata oluştu.');
@@ -83,9 +78,8 @@ const LeaveRequest = () => {
 
   const handleUpdate = async (id) => {
     try {
-      await axios.put(`http://localhost:5000/api/leave/${id}`, 
-        { reason: editReason },
-        { headers: { Authorization: `Bearer ${token}` } }
+      await api.put(`/leave/${id}`, 
+        { reason: editReason }
       );
       setMyLeaves(myLeaves.map(l => l._id === id ? { ...l, reason: editReason } : l));
       setEditId(null);

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import axios from 'axios';
-import { useNavigate, Link, useLocation } from 'react-router-dom'; // useLocation eklendi
+import api from '../lib/api';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { LogIn, User, Lock, Loader2 } from 'lucide-react';
 
 const Login = () => {
@@ -10,7 +10,7 @@ const Login = () => {
   const [error, setError] = useState('');
   
   const navigate = useNavigate();
-  const location = useLocation(); // YENİ: Nereden geldiğimizi anlamak için
+  const location = useLocation();
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -18,14 +18,11 @@ const Login = () => {
     setError('');
 
     try {
-      const { data } = await axios.post('http://localhost:5000/api/auth/login', { email, password });
+      const { data } = await api.post('/auth/login', { email, password });
       
       localStorage.setItem('token', data.token);
       localStorage.setItem('user', JSON.stringify(data.user));
 
-      // YENİ: Akıllı Yönlendirme Mantığı
-      // Eğer bir sayfadan (örneğin QR sayfası) buraya şutlandıysak oraya geri dön, 
-      // yoksa normal Dashboard'a git.
       const origin = location.state?.from?.pathname || '/dashboard';
       navigate(origin);
 

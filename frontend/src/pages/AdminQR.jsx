@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import api from '../lib/api';
 import { QRCodeCanvas } from 'qrcode.react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft, QrCode, CheckCircle, Users, Clock, Loader2 } from 'lucide-react';
@@ -16,9 +16,7 @@ const AdminQR = () => {
   useEffect(() => {
     const fetchSession = async () => {
       try {
-        const { data } = await axios.get('http://localhost:5000/api/attendance/active-session', {
-          headers: { Authorization: `Bearer ${token}` }
-        });
+        const { data } = await api.get('/attendance/active-session');
         if (data) {
           setQrData(data.qrData);
           setStartTime(data.startTime);
@@ -32,9 +30,7 @@ const AdminQR = () => {
   useEffect(() => {
     const fetchAttendees = async () => {
       try {
-        const { data } = await axios.get('http://localhost:5000/api/attendance/today', {
-          headers: { Authorization: `Bearer ${token}` }
-        });
+        const { data } = await api.get('/attendance/today');
         setAttendees(Array.isArray(data) ? data : []);
       } catch (err) {
         setAttendees([]);
@@ -52,9 +48,8 @@ const AdminQR = () => {
 
   const handleGenerate = async () => {
     try {
-      const { data } = await axios.post('http://localhost:5000/api/attendance/generate', 
-        { startTime },
-        { headers: { Authorization: `Bearer ${token}` } }
+      const { data } = await api.post('/attendance/generate', 
+        { startTime }
       );
       setQrData(data.qrData);
       setIsExisting(true);

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import axios from 'axios';
+import api from '../lib/api';
 import { Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Check, X, Clock, User, Calendar as CalendarIcon, FileText, RotateCcw, ListFilter } from 'lucide-react';
 
@@ -25,9 +25,7 @@ const AdminLeaves = () => {
     }
 
     try {
-      const { data } = await axios.get('http://localhost:5000/api/leave', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const { data } = await api.get('/leave');
       setLeaves(data);
     } catch (err) {
       setError('İzin talepleri yüklenirken bir hata oluştu.');
@@ -39,10 +37,9 @@ const AdminLeaves = () => {
   const handleStatusUpdate = async (id, newStatus) => {
     const token = localStorage.getItem('token');
     try {
-      await axios.put(
-        `http://localhost:5000/api/leave/${id}/status`,
-        { status: newStatus },
-        { headers: { Authorization: `Bearer ${token}` } }
+      await api.put(
+        `/leave/${id}/status`,
+        { status: newStatus }
       );
       
       // İşlem başarılıysa ekrandaki listeyi anında güncelle

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import axios from 'axios';
+import api from '../lib/api';
 import { Loader2, CheckCircle, XCircle } from 'lucide-react';
 
 const DirectScan = () => {
@@ -14,17 +14,13 @@ const DirectScan = () => {
     const scan = async () => {
       const token = localStorage.getItem('token');
 
-      // 1. KİMLİK KONTROLÜ: Login değilse Login'e şutla ama geri döneceği yolu fısılda!
       if (!token) {
         navigate('/login', { state: { from: location } });
         return;
       }
 
       try {
-        const { data } = await axios.post('http://localhost:5000/api/attendance/scan', 
-          { qrToken },
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
+        await api.post('/attendance/scan', { qrToken });
         setStatus('success');
         setTimeout(() => navigate('/dashboard'), 3000);
       } catch (err) {

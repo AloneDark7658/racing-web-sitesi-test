@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import api from '../lib/api';
 import { Link } from 'react-router-dom';
 import { ArrowLeft, TrendingUp, X, Loader2, CalendarDays, AlertCircle } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
@@ -16,9 +16,7 @@ const AdminAttendanceLog = () => {
   useEffect(() => {
     const fetchSummary = async () => {
       try {
-        const { data } = await axios.get('http://localhost:5000/api/attendance/summary', {
-          headers: { Authorization: `Bearer ${token}` }
-        });
+        const { data } = await api.get('/attendance/summary');
         setSummary(data);
       } catch (err) {
         console.error("Özet tablo hatası:", err);
@@ -33,9 +31,7 @@ const AdminAttendanceLog = () => {
     setSelectedUser(userName);
     setGraphLoading(true);
     try {
-      const { data } = await axios.get(`http://localhost:5000/api/attendance/graph/${userId}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const { data } = await api.get(`/attendance/graph/${userId}`);
       setGraphData(data);
     } catch (err) { console.error(err); } 
     finally { setGraphLoading(false); }

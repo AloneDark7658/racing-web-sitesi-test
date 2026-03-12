@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import api from '../lib/api';
 import { useNavigate, Link } from 'react-router-dom';
 import { User, Mail, CreditCard, Lock, Loader2, ArrowLeft, Save, CheckCircle, AlertCircle } from 'lucide-react';
 
@@ -30,9 +30,7 @@ const Profile = () => {
 
   const fetchProfile = async () => {
     try {
-      const { data } = await axios.get('http://localhost:5000/api/users/me', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const { data } = await api.get('/users/me');
       setProfile(data);
       setFormData({
         email: data.email || '',
@@ -79,9 +77,7 @@ const Profile = () => {
         payload.newPassword = formData.newPassword;
       }
 
-      const { data } = await axios.put('http://localhost:5000/api/users/me', payload, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const { data } = await api.put('/users/me', payload);
 
       setMessage(data.message);
       if (data.user) {
