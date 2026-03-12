@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { Html5QrcodeScanner } from 'html5-qrcode';
 import api from '../lib/api';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { ShieldAlert, CheckCircle, XCircle, Loader2, ArrowLeft } from 'lucide-react';
 
 const DirectScan = () => {
@@ -10,7 +10,9 @@ const DirectScan = () => {
   const [loading, setLoading] = useState(false);
   
   const navigate = useNavigate();
+  const { qrToken: urlQrToken } = useParams(); // URL üzerinden gelen QR token
   const scannerRef = useRef(null); 
+  const processedRef = useRef(false); // Çift işlemi engelle
 
   const getOrCreateDeviceId = () => {
     let deviceId = localStorage.getItem('deviceId');
@@ -21,6 +23,16 @@ const DirectScan = () => {
     return deviceId;
   };
 
+  // JWT token'ı çıkar — URL veya düz token olabilir
+  const extractToken = (scannedText) => {
+    // Eğer tam bir URL ise, /direct-scan/ sonrasını al
+    if (scannedText.includes('/direct-scan/')) {
+      return scannedText.split('/direct-scan/')[1];
+    }
+    // Değilse zaten JWT token'dır
+    return scannedText;
+  };
+
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (!token) {
@@ -28,6 +40,14 @@ const DirectScan = () => {
       return;
     }
 
+    // URL'den QR token geldiyse direkt işle (kamera açma)
+    if (urlQrToken && !processedRef.current) {
+      processedRef.current = true;
+      processQRCode(urlQrToken);
+      return;
+    }
+
+    // Kamera ile tarama
     let isMounted = true;
     const timer = setTimeout(() => {
       if (!isMounted) return;
@@ -48,7 +68,8 @@ const DirectScan = () => {
             scannerRef.current.clear().catch(e => console.log(e));
             scannerRef.current = null;
           }
-          processQRCode(decodedText);
+          const jwtToken = extractToken(decodedText);
+          processQRCode(jwtToken);
         },
         (err) => {
           // anlık hataları yut
@@ -64,9 +85,9 @@ const DirectScan = () => {
         scannerRef.current = null;
       }
     };
-  }, [navigate]);
+  }, [navigate, urlQrToken]);
 
-  const processQRCode = async (scannedToken) => {
+  const processQRCode = async (qrToken) => {
     setLoading(true);
     setError(null);
     setScanResult(null);
@@ -76,7 +97,7 @@ const DirectScan = () => {
     try {
       const response = await api.post(
         '/attendance/scan',
-        { qrToken: scannedToken, deviceId: deviceId }
+        { qrToken: qrToken, deviceId: deviceId }
       );
       
       setScanResult({
@@ -113,7 +134,9 @@ const DirectScan = () => {
 
         <div className="text-center mb-8 mt-4">
           <h1 className="text-2xl font-black italic tracking-tighter">YOKLAMA <span className="text-red-600">SİSTEMİ</span></h1>
-          <p className="text-sm text-gray-400 mt-1">Lütfen kameranızı ekrandaki karekoda hizalayın.</p>
+          <p className="text-sm text-gray-400 mt-1">
+            {urlQrToken ? 'QR kod işleniyor...' : 'Lütfen kameranızı ekrandaki karekoda hizalayın.'}
+          </p>
         </div>
 
         {loading ? (
@@ -139,16 +162,16 @@ const DirectScan = () => {
               Tekrar Dene
             </button>
           </div>
-        ) : (
+        ) : !urlQrToken ? (
           <div className="overflow-hidden rounded-2xl">
             <div id="reader" className="w-full min-h-[250px]"></div>
           </div>
-        )}
+        ) : null}
 
         <div className="mt-8 flex items-start gap-3 bg-blue-500/10 border border-blue-500/20 p-4 rounded-xl">
           <ShieldAlert className="text-blue-500 flex-shrink-0" size={20} />
           <p className="text-xs text-blue-400 leading-relaxed">
-            <strong>Bilgi:</strong> Sistem, hesabınızı kullandığınız cihaza kilitler. Şu an test aşamasında olduğunuz için galeriden fotoğraf yükleme özelliği aktiftir.
+            <strong>Bilgi:</strong> Dinamik QR sistemi aktif — her okutmadan sonra QR kod otomatik yenilenir. Ekran görüntüsü ile yoklama yapılamaz.
           </p>
         </div>
       </div>

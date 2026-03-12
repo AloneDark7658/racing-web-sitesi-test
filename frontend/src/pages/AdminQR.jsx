@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import api from '../lib/api';
 import { QRCodeCanvas } from 'qrcode.react';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, QrCode, CheckCircle, Users, Clock, Loader2, Pencil, Trash2, X, Save } from 'lucide-react';
+import { ArrowLeft, CheckCircle, Users, Loader2, Pencil, Trash2, X, Save, ShieldCheck, RefreshCcw } from 'lucide-react';
 
 const AdminQR = () => {
   const [qrData, setQrData] = useState('');
@@ -19,6 +19,7 @@ const AdminQR = () => {
 
   const token = localStorage.getItem('token');
 
+  // İlk yüklemede oturum var mı kontrol et
   useEffect(() => {
     const fetchSession = async () => {
       try {
@@ -33,6 +34,29 @@ const AdminQR = () => {
     if(token) fetchSession();
   }, [token]);
 
+  // --- DİNAMİK QR: Her 3 saniyede QR değişmiş mi kontrol et ---
+  useEffect(() => {
+    if (!token || !isExisting) return;
+
+    const pollQR = async () => {
+      try {
+        const { data } = await api.get('/attendance/active-session');
+        if (data && data.qrData !== qrData) {
+          setQrData(data.qrData);
+          setStartTime(data.startTime);
+        }
+      } catch (err) {
+        // Oturum silinmişse
+        setQrData('');
+        setIsExisting(false);
+      }
+    };
+
+    const interval = setInterval(pollQR, 3000);
+    return () => clearInterval(interval);
+  }, [token, isExisting, qrData]);
+
+  // Canlı yoklama listesi
   useEffect(() => {
     const fetchAttendees = async () => {
       try {
@@ -54,9 +78,7 @@ const AdminQR = () => {
 
   const handleGenerate = async () => {
     try {
-      const { data } = await api.post('/attendance/generate', 
-        { startTime }
-      );
+      const { data } = await api.post('/attendance/generate', { startTime });
       setQrData(data.qrData);
       setIsExisting(true);
     } catch (err) {
@@ -64,7 +86,6 @@ const AdminQR = () => {
     }
   };
 
-  // --- YENİ: Saati düzenle ---
   const handleUpdate = async () => {
     if (!editTime) return;
     setActionLoading(true);
@@ -83,7 +104,6 @@ const AdminQR = () => {
     }
   };
 
-  // --- YENİ: Oturumu iptal et ---
   const handleCancel = async () => {
     if (!window.confirm('⚠️ Bugünün oturumunu ve tüm yoklama kayıtlarını silmek istediğinize emin misiniz? Bu işlem geri alınamaz!')) return;
     setActionLoading(true);
@@ -131,7 +151,7 @@ const AdminQR = () => {
                   <CheckCircle size={14} /> OTURUM AKTİF
                 </div>
 
-                {/* --- DÜZENLEME / İPTAL BUTONLARI --- */}
+                {/* DÜZENLEME / İPTAL BUTONLARI */}
                 {isEditing ? (
                   <div className="bg-black/30 border border-white/10 p-4 rounded-xl mb-4 space-y-3">
                     <p className="text-xs text-gray-400 font-bold uppercase">Yeni Mesai Saati</p>
@@ -197,10 +217,19 @@ const AdminQR = () => {
             {qrData && (
               <div className="flex flex-col items-center">
                 <div className="bg-white p-4 rounded-2xl shadow-[0_0_20px_rgba(255,255,255,0.1)]">
-                  <QRCodeCanvas value={`${window.location.origin}/direct-scan/${qrData}`} size={220} level="M" />
+                  {/* QR'a sadece JWT token gömülüyor — üye bu kodu okuttuğunda DirectScan işler */}
+                  <QRCodeCanvas value={qrData} size={220} level="M" />
                 </div>
                 <p className="mt-4 text-2xl font-black">{startTime}</p>
                 <p className="text-gray-500 text-[10px] uppercase font-bold tracking-tighter">Pist Açılış Saati</p>
+                
+                {/* Dinamik QR bilgilendirmesi */}
+                <div className="mt-4 flex items-center gap-2 bg-green-500/10 border border-green-500/20 px-3 py-2 rounded-lg">
+                  <ShieldCheck className="text-green-500 flex-shrink-0" size={14} />
+                  <p className="text-[10px] text-green-400 font-semibold">
+                    Dinamik güvenlik aktif — QR her okutmada yenilenir
+                  </p>
+                </div>
               </div>
             )}
           </div>

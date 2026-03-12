@@ -71,7 +71,7 @@ exports.generateQR = async (req, res) => {
   }
 };
 
-// 3. QR OKUTMA (Üyeler için)
+// 3. QR OKUTMA (Üyeler için) — DİNAMİK QR DESTEKLİ
 exports.scanQR = async (req, res) => {
   try {
     const { qrToken } = req.body;
@@ -82,6 +82,13 @@ exports.scanQR = async (req, res) => {
 
     if (decoded.date !== todayStr) {
       return res.status(400).json({ message: 'Bu QR dünden kalmış veya geçersiz!' });
+    }
+
+    // Oturumdaki aktif QR ile eşleşiyor mu kontrol et (eski/döndürülmüş QR'ı reddet)
+    const todayDate = new Date(todayStr);
+    const session = await AttendanceSession.findOne({ date: todayDate });
+    if (!session || session.qrData !== qrToken) {
+      return res.status(400).json({ message: 'Bu QR kod artık geçersiz! Yeni QR\'ı okutun.' });
     }
 
     const scanTime = new Date();
@@ -99,11 +106,22 @@ exports.scanQR = async (req, res) => {
     else if (delay > 15 && delay <= 30) color = 'orange';
     else if (delay > 30) color = 'red';
 
-    const attendance = await Attendance.findOneAndUpdate(
-      { userId, date: new Date(todayStr) },
+    await Attendance.findOneAndUpdate(
+      { userId, date: todayDate },
       { status: 'Geldi', scanTime, delayMinutes: delay, colorCode: color },
       { upsert: true, new: true }
     );
+
+    // --- DİNAMİK QR ROTASYONU ---
+    // Her başarılı okutmadan sonra QR'ı yenile ki ekran görüntüsü paylaşılamaz
+    const newQrPayload = {
+      purpose: 'itu_racing_attendance',
+      date: todayStr,
+      startTime: session.startTime
+    };
+    const newQrData = jwt.sign(newQrPayload, process.env.JWT_SECRET, { expiresIn: '12h' });
+    session.qrData = newQrData;
+    await session.save();
 
     res.status(200).json({ message: 'Piste giriş başarılı! ✅', delay, color });
   } catch (error) {
