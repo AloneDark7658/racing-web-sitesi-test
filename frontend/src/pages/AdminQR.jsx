@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import api from '../lib/api';
 import { QRCodeCanvas } from 'qrcode.react';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, QrCode, CheckCircle, Users, Clock, Loader2 } from 'lucide-react';
+import { ArrowLeft, QrCode, CheckCircle, Users, Clock, Loader2, Pencil, Trash2, X, Save } from 'lucide-react';
 
 const AdminQR = () => {
   const [qrData, setQrData] = useState('');
@@ -10,6 +10,12 @@ const AdminQR = () => {
   const [isExisting, setIsExisting] = useState(false);
   const [attendees, setAttendees] = useState([]);
   const [loadingList, setLoadingList] = useState(true);
+
+  // Düzenleme ve iptal state'leri
+  const [isEditing, setIsEditing] = useState(false);
+  const [editTime, setEditTime] = useState('');
+  const [actionLoading, setActionLoading] = useState(false);
+  const [actionMessage, setActionMessage] = useState('');
 
   const token = localStorage.getItem('token');
 
@@ -58,6 +64,45 @@ const AdminQR = () => {
     }
   };
 
+  // --- YENİ: Saati düzenle ---
+  const handleUpdate = async () => {
+    if (!editTime) return;
+    setActionLoading(true);
+    setActionMessage('');
+    try {
+      const { data } = await api.put('/attendance/session', { startTime: editTime });
+      setQrData(data.qrData);
+      setStartTime(data.startTime);
+      setIsEditing(false);
+      setActionMessage(data.message);
+      setTimeout(() => setActionMessage(''), 4000);
+    } catch (err) {
+      setActionMessage(err.response?.data?.message || 'Güncelleme başarısız.');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // --- YENİ: Oturumu iptal et ---
+  const handleCancel = async () => {
+    if (!window.confirm('⚠️ Bugünün oturumunu ve tüm yoklama kayıtlarını silmek istediğinize emin misiniz? Bu işlem geri alınamaz!')) return;
+    setActionLoading(true);
+    setActionMessage('');
+    try {
+      const { data } = await api.delete('/attendance/session');
+      setQrData('');
+      setIsExisting(false);
+      setStartTime('18:00');
+      setAttendees([]);
+      setActionMessage(data.message);
+      setTimeout(() => setActionMessage(''), 4000);
+    } catch (err) {
+      setActionMessage(err.response?.data?.message || 'İptal başarısız.');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white p-4 md:p-8">
       <div className="max-w-6xl mx-auto">
@@ -65,18 +110,73 @@ const AdminQR = () => {
           <ArrowLeft size={18} /> Dashboard'a Dön
         </Link>
 
+        {/* Aksiyon mesajı */}
+        {actionMessage && (
+          <div className="bg-green-500/10 border border-green-500/30 text-green-400 p-3 rounded-xl mb-6 text-sm font-bold text-center">
+            {actionMessage}
+          </div>
+        )}
+
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           
-          {/* SOL TARAF: QR KOD (PERFORMANS AYARI: Blur kaldırıldı, gölge sadeleşti) */}
+          {/* SOL TARAF: QR KOD */}
           <div className="lg:col-span-5 bg-[#141414] p-8 rounded-3xl border border-white/10 shadow-xl h-fit">
             <h1 className="text-xl font-black italic mb-6 text-center uppercase tracking-tighter">
               YOKLAMA <span className="text-red-600">MASASI</span>
             </h1>
 
             {isExisting ? (
-              <div className="bg-green-500/10 border border-green-500/30 p-3 rounded-xl mb-6 flex items-center justify-center gap-2 text-green-500 text-xs font-bold">
-                <CheckCircle size={14} /> OTURUM AKTİF
-              </div>
+              <>
+                <div className="bg-green-500/10 border border-green-500/30 p-3 rounded-xl mb-4 flex items-center justify-center gap-2 text-green-500 text-xs font-bold">
+                  <CheckCircle size={14} /> OTURUM AKTİF
+                </div>
+
+                {/* --- DÜZENLEME / İPTAL BUTONLARI --- */}
+                {isEditing ? (
+                  <div className="bg-black/30 border border-white/10 p-4 rounded-xl mb-4 space-y-3">
+                    <p className="text-xs text-gray-400 font-bold uppercase">Yeni Mesai Saati</p>
+                    <input 
+                      type="time" 
+                      className="w-full bg-black/40 border border-white/10 p-3 rounded-lg text-xl font-mono text-center outline-none focus:border-red-600 transition-colors"
+                      value={editTime}
+                      onChange={(e) => setEditTime(e.target.value)}
+                    />
+                    <div className="flex gap-2">
+                      <button 
+                        onClick={handleUpdate}
+                        disabled={actionLoading}
+                        className="flex-1 bg-green-600 hover:bg-green-700 py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1 transition-colors disabled:opacity-50"
+                      >
+                        {actionLoading ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+                        Güncelle
+                      </button>
+                      <button 
+                        onClick={() => setIsEditing(false)}
+                        className="flex-1 bg-white/10 hover:bg-white/20 py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1 transition-colors"
+                      >
+                        <X size={14} /> Vazgeç
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex gap-2 mb-4">
+                    <button 
+                      onClick={() => { setEditTime(startTime); setIsEditing(true); }}
+                      className="flex-1 bg-white/5 hover:bg-white/10 border border-white/10 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-colors"
+                    >
+                      <Pencil size={13} /> Saati Düzenle
+                    </button>
+                    <button 
+                      onClick={handleCancel}
+                      disabled={actionLoading}
+                      className="flex-1 bg-red-600/10 hover:bg-red-600/20 border border-red-600/30 text-red-500 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-colors disabled:opacity-50"
+                    >
+                      {actionLoading ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
+                      Oturumu İptal Et
+                    </button>
+                  </div>
+                )}
+              </>
             ) : (
               <div className="space-y-4 mb-8">
                 <input 
@@ -96,7 +196,6 @@ const AdminQR = () => {
 
             {qrData && (
               <div className="flex flex-col items-center">
-                {/* Ağır gölge (blur-50px) yerine ince glow (blur-sm) kullanıyoruz */}
                 <div className="bg-white p-4 rounded-2xl shadow-[0_0_20px_rgba(255,255,255,0.1)]">
                   <QRCodeCanvas value={`${window.location.origin}/direct-scan/${qrData}`} size={220} level="M" />
                 </div>
@@ -106,7 +205,7 @@ const AdminQR = () => {
             )}
           </div>
 
-          {/* SAĞ TARAF: LİSTE (PERFORMANS AYARI: Transition-all kaldırıldı) */}
+          {/* SAĞ TARAF: LİSTE */}
           <div className="lg:col-span-7 bg-[#141414] border border-white/10 rounded-3xl p-6">
             <h2 className="text-lg font-bold flex items-center gap-2 mb-6 border-b border-white/5 pb-4">
               <Users className="text-red-500" size={20} /> Canlı Paddock

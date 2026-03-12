@@ -243,6 +243,85 @@ exports.getMySummary = async (req, res) => {
       totalSessions: sessions.length 
     });
   } catch (error) {
-    res.status(500).json({ message: 'Kişisel özet hatası.' });
+   res.status(500).json({ message: 'Kişisel özet hatası.' });
   }
 };
+
+// 8. OTURUM GÜNCELLE — Mesai saatini değiştir, QR yeniden oluştur (Admin)
+exports.updateSession = async (req, res) => {
+  try {
+    const { startTime } = req.body;
+    const todayStr = formatDate(new Date());
+    const todayDate = new Date(todayStr);
+
+    const session = await AttendanceSession.findOne({ date: todayDate });
+    if (!session) {
+      return res.status(404).json({ message: 'Bugün için aktif oturum bulunamadı.' });
+    }
+
+    // Yeni QR oluştur (yeni saat bilgisiyle)
+    const qrPayload = {
+      purpose: 'itu_racing_attendance',
+      date: todayStr,
+      startTime: startTime
+    };
+    const qrData = jwt.sign(qrPayload, process.env.JWT_SECRET, { expiresIn: '12h' });
+
+    session.startTime = startTime;
+    session.qrData = qrData;
+    await session.save();
+
+    // Mevcut yoklamaları yeni saate göre yeniden hesapla
+    const attendances = await Attendance.find({ date: todayDate });
+    const [h, m] = startTime.split(':');
+    const targetTime = new Date();
+    targetTime.setHours(parseInt(h), parseInt(m), 0, 0);
+
+    for (const att of attendances) {
+      if (att.scanTime) {
+        let delay = 0;
+        if (att.scanTime > targetTime) {
+          delay = Math.floor((att.scanTime - targetTime) / (1000 * 60));
+        }
+        let color = 'green';
+        if (delay > 0 && delay <= 15) color = 'yellow';
+        else if (delay > 15 && delay <= 30) color = 'orange';
+        else if (delay > 30) color = 'red';
+
+        att.delayMinutes = delay;
+        att.colorCode = color;
+        await att.save();
+      }
+    }
+
+    res.status(200).json({ 
+      qrData, 
+      startTime, 
+      message: `Mesai saati ${startTime} olarak güncellendi ve QR yenilendi! ✅` 
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Oturum güncellenemedi.' });
+  }
+};
+
+// 9. OTURUMU İPTAL ET — Oturumu ve o günün tüm yoklamalarını sil (Admin)
+exports.deleteSession = async (req, res) => {
+  try {
+    const todayStr = formatDate(new Date());
+    const todayDate = new Date(todayStr);
+
+    const session = await AttendanceSession.findOneAndDelete({ date: todayDate });
+    if (!session) {
+      return res.status(404).json({ message: 'Bugün için aktif oturum bulunamadı.' });
+    }
+
+    // O güne ait tüm yoklama kayıtlarını sil
+    const deleted = await Attendance.deleteMany({ date: todayDate });
+
+    res.status(200).json({ 
+      message: `Oturum iptal edildi ve ${deleted.deletedCount} yoklama kaydı silindi. 🗑️` 
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Oturum iptal edilemedi.' });
+  }
+};
