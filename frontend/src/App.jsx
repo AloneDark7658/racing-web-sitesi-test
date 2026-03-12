@@ -15,6 +15,10 @@ import DirectScan from './pages/DirectScan';
 import MyPerformance from './pages/MyPerformance';
 import Profile from './pages/Profile';
 
+// --- DUYURU SAYFALARI ---
+import AdminAnnouncements from './pages/AdminAnnouncements';
+import Announcements from './pages/Announcements';
+
 function App() {
   return (
     <Router>
@@ -30,13 +34,16 @@ function App() {
         <Route path="/leave-request" element={<ProtectedRoute><LeaveRequest /></ProtectedRoute>} />
         <Route path="/my-performance" element={<ProtectedRoute><MyPerformance /></ProtectedRoute>} />
         <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+        <Route path="/direct-scan" element={<ProtectedRoute><DirectScan /></ProtectedRoute>} />
         <Route path="/direct-scan/:qrToken" element={<ProtectedRoute><DirectScan /></ProtectedRoute>} />
+        <Route path="/announcements" element={<ProtectedRoute><Announcements /></ProtectedRoute>} />
 
         {/* Sadece Admin rotaları */}
         <Route path="/admin/qr-generate" element={<AdminRoute><AdminQR /></AdminRoute>} />
         <Route path="/admin/attendance-log" element={<AdminRoute><AdminAttendanceLog /></AdminRoute>} />
         <Route path="/admin/leaves" element={<AdminRoute><AdminLeaves /></AdminRoute>} />
         <Route path="/admin/departments" element={<AdminRoute><AdminDepartments /></AdminRoute>} />
+        <Route path="/admin/announcements" element={<AdminRoute><AdminAnnouncements /></AdminRoute>} />
 
         <Route path="*" element={<Navigate to="/login" />} />
       </Routes>
